@@ -1,0 +1,28 @@
+# Python build artifacts
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Virtual environments
+.env
+.venv
+venv/
+ENV/
+
+# IDE/editor files
+.idea/
+.vscode/
+.DS_Store
+
+# Agent runtime
+memory/
+*.log
+
+# Tools
+pip-wheel-metadata/

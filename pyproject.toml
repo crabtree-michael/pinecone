@@ -1,0 +1,19 @@
+[project]
+name = "pinecone-agent"
+version = "0.1.0"
+description = "Local research agent that inspects files via SPAR framework"
+authors = [{name = "Pinecone"}]
+requires-python = ">=3.9"
+
+[project.scripts]
+pinecone-agent = "pinecone_agent.cli:main"
+
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+include-package-data = false
+
+[tool.setuptools.packages.find]
+include = ["pinecone_agent"]
