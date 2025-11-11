@@ -1,0 +1,4 @@
+pinecone:
+  lang: python
+  package manager: pip
+  virtualenv: .venv

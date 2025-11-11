@@ -1,3 +1,3 @@
-from .app import PineconeApp
+"""Pinecone research agent package."""
 
-__all__ = ["PineconeApp"]
+__all__ = []

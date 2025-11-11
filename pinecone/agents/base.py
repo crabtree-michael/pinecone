@@ -1,95 +1,91 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from pathlib import Path
-from typing import Iterable
+import json
+from typing import Dict, List
 
-from ..llm import OllamaClient, build_prompt
+from ..llm import OllamaClient
 from ..tools import Tool, ToolError
-from ..types import LLMResponse, Message, ToolCall
-
-
-PROMPT_DIR = Path(__file__).resolve().parents[1] / "prompts"
-
-
-def load_prompt_file(filename: str) -> str:
-    path = PROMPT_DIR / filename
-    return path.read_text(encoding="utf-8")
-
-
-@dataclass
-class AgentConfig:
-    name: str
-    prompt_file: str
-    tools: Iterable[Tool] = ()
-    max_tool_loops: int = 10
+from ..types import ChatMessage
 
 
 class Agent:
-    def __init__(self, config: AgentConfig, llm: OllamaClient | None = None) -> None:
-        self.config = config
-        self.llm = llm or OllamaClient()
-        self.history: list[Message] = []
-        self.tools = {tool.name: tool for tool in config.tools}
-        agent_prompt = load_prompt_file(config.prompt_file)
-        tool_text = self._tool_description()
-        self.system_prompt = "\n\n".join(
-            part
-            for part in (agent_prompt.strip(), tool_text.strip())
-            if part
+    """Common functionality shared across Pinecone agents."""
+
+    def __init__(
+        self,
+        *,
+        name: str,
+        model: str,
+        prompt: str,
+        client: OllamaClient,
+        tools: Dict[str, Tool] | None = None,
+    ) -> None:
+        self.name = name
+        self.model = model
+        self.client = client
+        self.tools = tools or {}
+        self.messages: List[ChatMessage] = [
+            ChatMessage(role="system", content=prompt)
+        ]
+
+    def handle_message(self, content: str) -> ChatMessage:
+        """Handle a single message from the orchestrator/user."""
+        self.messages.append(ChatMessage(role="user", content=content))
+        return self._complete()
+
+    def _complete(self) -> ChatMessage:
+        response = self.client.chat(
+            model=self.model,
+            messages=self.messages,
+            tools=[tool.definition() for tool in self.tools.values()]
+            if self.tools
+            else None,
         )
 
-    def _tool_description(self) -> str:
-        if not self.tools:
-            return "No tools are available."
-        lines = ["Available tools (use the exact name shown when making tool calls):"]
-        for tool in self.tools.values():
-            lines.append(f"- {tool.name}: {tool.description}")
-        return "\n".join(lines)
+        assistant_message = response.message
+        self.messages.append(assistant_message)
 
-    def reset(self) -> None:
-        self.history.clear()
+        if assistant_message.tool_calls:
+            self._handle_tool_calls(assistant_message)
+            return self._complete()
 
-    def handle(self, message: str, sender: str = "system") -> str:
-        self.update_chat_history(message, sender, "user")
-        return self.get_next_answer()
+        return assistant_message
 
-    def update_chat_history(self, message, sender: str = "system", role: str = "user"):
-        self.history.append(Message(role, content=message, name=sender))
-    
-    def get_next_answer(self):
-        for _ in range(self.config.max_tool_loops):
-            prompt = build_prompt(self.system_prompt, self.history)
-            response = self.llm.generate(prompt)
-            self.history.append(Message(role="assistant", content=response.content, name=self.config.name))
-            if response.tool_calls:
-                self._process_tools(response)
-                continue
-            return response.content
-        raise RuntimeError(f"{self.config.name} exceeded tool loop limit")
-
-    def _process_tools(self, response: LLMResponse) -> None:
-        for call in response.tool_calls:
-            tool = self._resolve_tool(call)
+    def _handle_tool_calls(self, message: ChatMessage) -> None:
+        for call in message.tool_calls:
+            tool_name = call.function.name
+            tool = self.tools.get(tool_name)
             if not tool:
-                error = f"Unknown tool '{call.name}'"
-                self.history.append(Message(role="tool", content=error, name=call.name))
-                continue
-            try:
-                result = tool.run(call.arguments)
-            except ToolError as exc:
-                result = f"ToolError: {exc}"
-            print("Adding to tool history", result)
-            self.history.append(Message(role="tool", content=result, name=call.name))
+                tool_output = f"Tool '{tool_name}' is not available."
+            else:
+                try:
+                    arguments = self._parse_arguments(call.function.arguments)
+                    tool_output = tool.run(**arguments)
+                except ToolError as exc:
+                    tool_output = f"Tool error: {exc}"
+                except ValueError as exc:
+                    tool_output = f"Invalid arguments: {exc}"
 
-    def _resolve_tool(self, call: ToolCall) -> Tool | None:
-        tool = self.tools.get(call.name)
-        if tool:
-            return tool
-        if len(self.tools) == 1:
-            return next(iter(self.tools.values()))
-        if isinstance(call.arguments, dict):
-            alias = call.arguments.get("name") or call.arguments.get("tool")
-            if isinstance(alias, str):
-                return self.tools.get(alias)
-        return None
+            self.messages.append(
+                ChatMessage(
+                    role="tool",
+                    name=tool_name,
+                    tool_call_id=call.id,
+                    content=tool_output,
+                )
+            )
+
+    @staticmethod
+    def _parse_arguments(arguments: object) -> Dict[str, object]:
+        if not arguments:
+            return {}
+        if isinstance(arguments, dict):
+            parsed = arguments
+        else:
+            try:
+                parsed = json.loads(arguments)
+            except json.JSONDecodeError as exc:  # pragma: no cover - defensive
+                raise ValueError("Tool arguments are not valid JSON.") from exc
+        if not isinstance(parsed, dict):
+            raise ValueError("Tool arguments must deserialize into an object.")
+        return parsed

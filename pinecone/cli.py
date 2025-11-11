@@ -1,82 +1,85 @@
 from __future__ import annotations
 
 import argparse
-import logging
 import sys
-import textwrap
+from pathlib import Path
 
-from .app import PineconeApp
-
-
-PROMPT = "pinecone> "
+from .agents import FinderAgent
+from .llm import OllamaClient
 
 
-def handle_command(app: PineconeApp, command: str) -> bool:
-    """Return False to exit the loop."""
-    if command == ":quit":
-        return False
-    if command == ":history":
-        print("-" * 40)
-        print(app.render_master_chat())
-        print("-" * 40)
-        return True
-    if command == ":reset":
-        app.reset()
-        print("State cleared.")
-        return True
-    print("Unknown command. Available: :history, :reset, :quit")
-    return True
-
-
-def main(argv: list[str] | None = None) -> int:
+def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        prog="pinecone",
-        description="CLI for the Pinecone multi-agent research assistant.",
+        description="Pinecone Finder agent standalone CLI."
     )
     parser.add_argument(
-        "--no-banner",
-        action="store_true",
-        help="Suppress the startup banner.",
+        "--root",
+        type=Path,
+        default=Path.cwd(),
+        help="Workspace root the finder should operate on (defaults to CWD).",
     )
-    args = parser.parse_args(argv)
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(levelname)s %(name)s: %(message)s",
+    parser.add_argument(
+        "--prompt",
+        type=Path,
+        default=Path("prompts/finder.md"),
+        help="Path to the finder prompt template.",
     )
-    app = PineconeApp()
-    if not args.no_banner:
-        banner = textwrap.dedent(
-            """
-            Pinecone Research Agent
-            -----------------------
-            Type questions to investigate your workspace.
-            Commands: :history, :reset, :quit
-            """
-        ).strip()
-        print(banner)
+    parser.add_argument(
+        "--model",
+        type=str,
+        default=FinderAgent.MODEL_NAME,
+        help="Override the Ollama model name.",
+    )
+    return parser.parse_args(argv)
+
+
+def load_prompt(path: Path) -> str:
+    try:
+        return path.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        raise SystemExit(f"Prompt file not found: {path}") from None
+
+
+def run_finder(root: Path, prompt_template: str, model: str) -> None:
+    client = OllamaClient()
+    agent = FinderAgent.from_workspace(
+        root=root,
+        prompt_template=prompt_template,
+        client=client,
+        model=model,
+    )
+    show_banner(agent)
+    loop(agent)
+
+
+def show_banner(agent: FinderAgent) -> None:
+    print("Pinecone Finder standalone chat")
+    print(f"- workspace: {agent.root}")
+    print("- type 'exit' or Ctrl-D to quit.\n")
+
+
+def loop(agent: FinderAgent) -> None:
     while True:
         try:
-            raw = input(PROMPT)
+            message = input("orchestrator> ").strip()
         except EOFError:
             print()
             break
-        message = raw.strip()
+
+        if message.lower() in {"exit", "quit"}:
+            break
         if not message:
             continue
-        if message.startswith(":"):
-            if not handle_command(app, message):
-                break
-            continue
-        try:
-            response = app.process_user_message(message)
-            print(f"orchestrator: {response}")
-            print("-" * 40)
-            print(app.render_master_chat())
-            print("-" * 40)
-        except Exception as exc:  # pragma: no cover - interactive resilience
-            print(f"[error] {exc}")
-    return 0
+
+        response = agent.handle_message(message)
+        print(f"[finder] {response.content}\n")
 
 
-if __name__ == "__main__":  # pragma: no cover
-    sys.exit(main())
+def main(argv: list[str] | None = None) -> None:
+    args = parse_args(argv or sys.argv[1:])
+    prompt_template = load_prompt(args.prompt)
+    run_finder(args.root, prompt_template, args.model)
+
+
+if __name__ == "__main__":
+    main()

@@ -1,121 +1,107 @@
 from __future__ import annotations
 
-import shlex
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable
+from typing import Any, Dict, Optional
 
 
 class ToolError(RuntimeError):
-    """Raised when a tool invocation fails or input is invalid."""
+    """Raised when a tool invocation fails."""
 
 
-@dataclass
 class Tool:
+    """Base interface for tool integrations."""
+
     name: str
     description: str
+    parameters: Dict[str, Any]
 
-    def run(self, arguments: dict) -> str:  # pragma: no cover - interface
+    def definition(self) -> Dict[str, Any]:
+        return {
+            "type": "function",
+            "function": {
+                "name": self.name,
+                "description": self.description,
+                "parameters": self.parameters,
+            },
+        }
+
+    def run(self, **kwargs: Any) -> str:  # pragma: no cover - interface
         raise NotImplementedError
 
 
+@dataclass
 class ShellTool(Tool):
-    """Finder tool that can execute whitelisted shell commands."""
+    """Execute shell commands constrained to the Pinecone working tree."""
 
-    allowed = {"ls", "find"}
-    forbidden_tokens = {";", "&&", "||", "|", "&"}
+    root: Path
+    name: str = "shell"
+    description: str = (
+        "Execute a shell command relative to the Pinecone working directory."
+    )
+    max_output_chars: int = 4000
+    parameters: Dict[str, Any] = None  # type: ignore[assignment]
 
-    def __init__(self, workspace_root: Path | None = None) -> None:
-        super().__init__(
-            name="shell",
-            description=(
-                "Execute ls via shell"
-                "Arguments: {\"command\": \"the command you wish to run\"}."
-            ),
-        )
-        self.workspace_root = (workspace_root or Path.cwd()).resolve()
+    def __post_init__(self) -> None:
+        self.root = self.root.resolve()
+        self.parameters = {
+            "type": "object",
+            "properties": {
+                "command": {
+                    "type": "string",
+                    "description": "The command to execute. Avoid long-running commands.",
+                },
+                "cwd": {
+                    "type": "string",
+                    "description": (
+                        "Optional path relative to the Pinecone working directory "
+                        "to run the command from."
+                    ),
+                },
+                "timeout": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 120,
+                    "description": "Maximum seconds the command is allowed to run.",
+                },
+            },
+            "required": ["command"],
+        }
 
-    def run(self, arguments: dict) -> str:
-        command = str(arguments.get("command") or "").strip()
-        if not command:
-            raise ToolError("shell command is required")
+    def run(
+        self, *, command: str, cwd: Optional[str] = None, timeout: int = 30
+    ) -> str:
+        working_dir = self._resolve_cwd(cwd)
         try:
-            tokens = shlex.split(command)
-        except ValueError as exc:  # pragma: no cover - defensive
-            raise ToolError(f"invalid command: {exc}") from exc
-        if not tokens:
-            raise ToolError("shell command is required")
-        first = tokens[0]
-        if first not in self.allowed:
-            raise ToolError(f"command '{first}' is not permitted")
-        if any(tok in self.forbidden_tokens for tok in tokens[1:]):
-            raise ToolError("command chaining operators are not allowed")
-        if any(ch in command for ch in "`\n\r"):
-            raise ToolError("invalid characters in command")
-        process = subprocess.run(
-            tokens,
-            capture_output=True,
-            text=True,
-            cwd=self.workspace_root,
-            check=False,
+            completed = subprocess.run(
+                command,
+                cwd=str(working_dir),
+                shell=True,
+                check=False,
+                text=True,
+                capture_output=True,
+                timeout=timeout,
+            )
+        except subprocess.TimeoutExpired as exc:  # pragma: no cover - defensive
+            raise ToolError(f"Command timed out after {timeout}s") from exc
+        except FileNotFoundError as exc:  # pragma: no cover - defensive
+            raise ToolError("Failed to execute command") from exc
+
+        output = self._format_output(
+            completed.stdout, completed.stderr, completed.returncode
         )
-        if process.returncode != 0:
-            raise ToolError(process.stderr.strip() or "shell command failed")
-        return process.stdout.strip()
+        return output[: self.max_output_chars]
 
+    def _resolve_cwd(self, relative: Optional[str]) -> Path:
+        candidate = self.root if not relative else (self.root / relative)
+        resolved = candidate.resolve()
+        if not resolved.is_relative_to(self.root):
+            raise ToolError("shell tool cannot access paths outside the Pinecone directory")
+        return resolved
 
-class ReadTool(Tool):
-    """Reader tool that returns inline file contents."""
-
-    def __init__(self, workspace_root: Path | None = None) -> None:
-        super().__init__(
-            name="read",
-            description=(
-                "Read a list of relative file paths and return their content in "
-                "<path>content</path> format. Arguments: {\"documents\": [\"README.md\"]}."
-            ),
-        )
-        self.workspace_root = (workspace_root or Path.cwd()).resolve()
-
-    def run(self, arguments: dict) -> str:
-        docs = arguments.get("documents")
-        if not docs:
-            raise ToolError("documents is required")
-        output_chunks: list[str] = []
-        root = self.workspace_root
-        for doc in docs:
-            rel_path = Path(str(doc))
-            target = (root / rel_path).resolve()
-            print(target)
-            if not target.is_relative_to(root):
-                raise ToolError(f"access outside workspace denied for {rel_path}")
-            if not target.exists():
-                raise ToolError(f"{rel_path} does not exist")
-            content = target.read_text(encoding="utf-8", errors="ignore")
-            output_chunks.append(f"<{rel_path}>{content}</{rel_path}>")
-        print(output_chunks)
-        return "\n".join(output_chunks)
-
-
-class AskAgentTool(Tool):
-    """Orchestrator tool used to query other agents."""
-
-    def __init__(self, dispatcher: Callable[[str, str], str]) -> None:
-        super().__init__(
-            name="ask_agent",
-            description=(
-                "Route a question to another agent. Arguments: "
-                "{\"agent\": \"finder|reader\", \"message\": \"text\"}."
-            ),
-        )
-        self.dispatcher = dispatcher
-
-    def run(self, arguments: dict) -> str:
-        agent = str(arguments.get("agent") or "").strip()
-        message = str(arguments.get("message") or "").strip()
-        if agent not in {"finder", "reader"}:
-            raise ToolError("agent must be 'finder' or 'reader'")
-        if not message:
-            raise ToolError("message is required")
-        return self.dispatcher(agent, message)
+    @staticmethod
+    def _format_output(stdout: str, stderr: str, code: int) -> str:
+        stdout = stdout.rstrip() or "<empty>"
+        stderr = stderr.rstrip() or "<empty>"
+        return f"exit_code: {code}\nstdout:\n{stdout}\nstderr:\n{stderr}"

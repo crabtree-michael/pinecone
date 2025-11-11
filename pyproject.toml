@@ -1,18 +1,20 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "pinecone"
 version = "0.1.0"
-description = "Local multi-agent research assistant orchestrated over a CLI."
-readme = "README.md"
-requires-python = ">=3.11"
-authors = [{ name = "Pinecone" }]
-dependencies = []
+description = "Local research agent with finder, reader, orchestrator roles."
+readme = "AGENTS.md"
+requires-python = ">=3.9.6"
+dependencies = [
+    "requests>=2.31,<3",
+]
 
 [project.scripts]
-pinecone = "pinecone.cli:main"
+pinecone-finder = "pinecone.cli:main"
 
 [tool.setuptools.packages.find]
-exclude = ["llms*", "llms.*"]
-
-[build-system]
-requires = ["setuptools>=68.0", "wheel"]
-build-backend = "setuptools.build_meta"
+include = ["pinecone", "pinecone.*"]
+namespaces = false
