@@ -1,2 +1,0 @@
-# Pinecone agent currently avoids third-party dependencies.
-# This placeholder keeps packaging flows happy and documents the fact.

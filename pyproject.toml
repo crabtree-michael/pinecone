@@ -1,19 +1,18 @@
 [project]
-name = "pinecone-agent"
+name = "pinecone"
 version = "0.1.0"
-description = "Local research agent that inspects files via SPAR framework"
-authors = [{name = "Pinecone"}]
-requires-python = ">=3.9"
+description = "Local multi-agent research assistant orchestrated over a CLI."
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [{ name = "Pinecone" }]
+dependencies = []
 
 [project.scripts]
-pinecone-agent = "pinecone_agent.cli:main"
-
-[build-system]
-requires = ["setuptools>=64"]
-build-backend = "setuptools.build_meta"
-
-[tool.setuptools]
-include-package-data = false
+pinecone = "pinecone.cli:main"
 
 [tool.setuptools.packages.find]
-include = ["pinecone_agent"]
+exclude = ["llms*", "llms.*"]
+
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
