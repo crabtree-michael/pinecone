@@ -32,7 +32,7 @@ All agents should use Ollama as a backing to access llms. All agents should use 
 
 All agents implementation details are defined in `.llm.yaml` details with the agents names in `llms`.
 
-- `orchestrator` coordinates among agents and decides when to respond to the user. It has a single tool `publish` that allows it to publish a message to all agents.
+- `orchestrator` coordinates among agents and decides when to respond to the user. It has a single tool `publish` that allows it to publish a message to some or all agents.
 
 - `finder` has context related to the organization of the filesystem. It should direct search. It can use the `shell` togather more information about the filesystem.
 
