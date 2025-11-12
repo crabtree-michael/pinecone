@@ -1,0 +1,16 @@
+basic agent workflow:
+  inputs:
+    - prompt: location of the initial prompt for the LLM
+    - initial context getter: a function that returns the initial context
+  steps:
+    build initial context:
+    replace context in prompt:
+      - key: "{initial_context}"
+    start chat with $prompt:
+    loop:
+      - wait for orchestrator message
+      - loop for final answer:
+        - get chat response 
+        - execute tools if requested
+        - respond to llm with tool response
+      - respond to orchestrator

@@ -2,3 +2,5 @@ pinecone:
   lang: python
   package manager: pip
   virtualenv: .venv
+  defintions:
+    working directory: directory where the user calls pinecone

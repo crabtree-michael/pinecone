@@ -1,2 +1,17 @@
 reader:
-  build: false
+  tools:
+    - read:
+        inputs:
+          files: array of strings
+        outputs:
+          contents:
+            description: The contents of each file delineated
+            delineator: # <absolute file path>
+  working directory: directory where the user calls pinecone
+  workflow:
+    basic agent workflow:
+      defintion: agent-workflow.llm.yaml
+      prompt: prompts/reader.md
+      initial context gettter:
+        returns: The contents of files in the working directory
+        number of files: 3

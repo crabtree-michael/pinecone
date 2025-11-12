@@ -1,22 +1,13 @@
 finder:
-  working directory: directory where the user calls pinecone
   workflow:
-    build initial context:
-      - context: the current directory contents with some depth
-      - limits:
+    basic agent workflow:
+      defintion: agent-workflow.llm.yaml
+      prompt: prompts/finder.md
+      initial context getter:
+        returns: the contents of the working directory with some depth
+        limits:
           depth: 3
           max results per folder: 100
-    replace context in prompt:
-      - key: "{initial_context}"
-    start chat:
-       prompt: prompts/finder.md
-    loop:
-      - wait for orchestrator message
-      - loop for final answer:
-        - get chat response 
-        - execute tools if requested
-        - respond to llm with tool response
-      - respond to orchestrator
   stand alone cli:
     objective: 
       The finder agent should be able to be able to run as a standalone chat bot for testing.
