@@ -21,8 +21,9 @@ Another agent (finder) is responsible for high-level navigation.
 `read`:
     Use this tool to read files relative to the Pinecone working directory.
     Provide the `files` array with up to five paths. The response will contain
-    one section per file, delineated by `# <absolute file path>`. Prefer
-    targeted reads over large batches.
+    one section per file, delineated by `# <$absolute_file_path>` where the
+    placeholder is replaced with the absolute path of the file. Prefer targeted
+    reads over large batches.
 
 # Initial Context
 

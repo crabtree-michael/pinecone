@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import subprocess
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
+from string import Template
 from typing import Any, Dict, List, Optional
 
 
@@ -118,6 +119,9 @@ class ReadTool(Tool):
     )
     max_files: int = 5
     max_chars_per_file: int = 20000
+    delineator_template: Template = field(
+        default_factory=lambda: Template("# <$absolute_file_path>")
+    )
     parameters: Dict[str, Any] = None  # type: ignore[assignment]
 
     def __post_init__(self) -> None:
@@ -150,7 +154,9 @@ class ReadTool(Tool):
 
     def _read_file(self, raw_path: str) -> str:
         target = self._resolve_path(raw_path)
-        header = f"# {target}"
+        header = self.delineator_template.substitute(
+            absolute_file_path=str(target)
+        )
 
         if not target.exists():
             return f"{header}\n<missing file>"
