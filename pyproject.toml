@@ -14,6 +14,7 @@ dependencies = [
 
 [project.scripts]
 pinecone-finder = "pinecone.cli:main"
+pinecone-reader = "pinecone.reader_cli:main"
 
 [tool.setuptools.packages.find]
 include = ["pinecone", "pinecone.*"]
