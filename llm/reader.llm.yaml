@@ -1,4 +1,6 @@
 reader:
+  debug cli:
+    description: tool to query reader as orchestrator
   tools:
     - read:
         inputs:
@@ -6,7 +8,9 @@ reader:
         outputs:
           contents:
             description: The contents of each file delineated
-            delineator: # <absolute file path>
+            delineator: # <$absolute_file_path>
+            variables:
+              - absolute file path
   working directory: directory where the user calls pinecone
   workflow:
     basic agent workflow:
