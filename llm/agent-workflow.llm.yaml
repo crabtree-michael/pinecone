@@ -1,6 +1,9 @@
 basic agent workflow:
   inputs:
-    - prompt: location of the initial prompt for the LLM
+    - prompt: 
+        description: location of the initial prompt for the LLM within project prompt folder
+                      When run the prompt folder should refer to the package prompt directory,
+                      not the working directory prompt directory
     - initial context getter: a function that returns the initial context
   steps:
     build initial context:
