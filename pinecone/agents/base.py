@@ -33,6 +33,14 @@ class Agent:
         self.messages.append(ChatMessage(role="user", content=content))
         return self._complete()
 
+    def add_message(self, message: ChatMessage) -> None:
+        """Append a message to the transcript without triggering a completion."""
+        self.messages.append(message)
+
+    def complete(self) -> ChatMessage:
+        """Generate a response based on the current transcript."""
+        return self._complete()
+
     def _complete(self) -> ChatMessage:
         response = self.client.chat(
             model=self.model,

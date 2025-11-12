@@ -4,7 +4,7 @@ import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 from string import Template
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 
 class ToolError(RuntimeError):
@@ -187,3 +187,38 @@ class ReadTool(Tool):
         if not resolved.is_relative_to(self.root):
             raise ToolError("read tool cannot access paths outside the Pinecone directory")
         return resolved
+
+
+@dataclass
+class PublishTool(Tool):
+    """Publish requests to Pinecone sub-agents."""
+
+    handler: Callable[..., str]
+    name: str = "publish"
+    description: str = (
+        "Publish a request to one or more Pinecone sub-agents and collect their responses."
+    )
+    parameters: Dict[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        self.parameters = {
+            "type": "object",
+            "properties": {
+                "audience": {
+                    "type": "string",
+                    "enum": ["all", "finder", "reader"],
+                    "description": "Which sub-agents should respond to the request.",
+                },
+                "request": {
+                    "type": "string",
+                    "description": "Instruction to forward to the selected agents.",
+                },
+            },
+            "required": ["audience", "request"],
+        }
+
+    def run(self, *, audience: str, request: str) -> str:
+        normalized = request.strip()
+        if not normalized:
+            raise ToolError("publish request cannot be empty.")
+        return self.handler(audience=audience, request=normalized)
