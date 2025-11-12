@@ -3,7 +3,7 @@ from __future__ import annotations
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 
 class ToolError(RuntimeError):
@@ -105,3 +105,79 @@ class ShellTool(Tool):
         stdout = stdout.rstrip() or "<empty>"
         stderr = stderr.rstrip() or "<empty>"
         return f"exit_code: {code}\nstdout:\n{stdout}\nstderr:\n{stderr}"
+
+
+@dataclass
+class ReadTool(Tool):
+    """Read files from the Pinecone working directory."""
+
+    root: Path
+    name: str = "read"
+    description: str = (
+        "Read one or more files relative to the Pinecone working directory."
+    )
+    max_files: int = 5
+    max_chars_per_file: int = 20000
+    parameters: Dict[str, Any] = None  # type: ignore[assignment]
+
+    def __post_init__(self) -> None:
+        self.root = self.root.resolve()
+        self.parameters = {
+            "type": "object",
+            "properties": {
+                "files": {
+                    "type": "array",
+                    "description": (
+                        "List of file paths (absolute or relative to the Pinecone "
+                        "working directory) to read."
+                    ),
+                    "items": {"type": "string"},
+                    "minItems": 1,
+                    "maxItems": self.max_files,
+                },
+            },
+            "required": ["files"],
+        }
+
+    def run(self, *, files: List[str]) -> str:
+        if not files:
+            raise ToolError("Provide at least one file to read.")
+        if len(files) > self.max_files:
+            raise ToolError(f"Read tool supports up to {self.max_files} files at once.")
+
+        sections = [self._read_file(path_str) for path_str in files]
+        return "\n\n".join(sections)
+
+    def _read_file(self, raw_path: str) -> str:
+        target = self._resolve_path(raw_path)
+        header = f"# {target}"
+
+        if not target.exists():
+            return f"{header}\n<missing file>"
+        if not target.is_file():
+            return f"{header}\n<not a regular file>"
+
+        try:
+            contents = target.read_text(encoding="utf-8", errors="replace")
+        except OSError as exc:
+            raise ToolError(f"Failed to read {target}: {exc}") from exc
+
+        truncated = False
+        if len(contents) > self.max_chars_per_file:
+            contents = contents[: self.max_chars_per_file]
+            truncated = True
+
+        body = contents.rstrip()
+        if not body:
+            body = "<empty file>"
+        if truncated:
+            body += "\n\n<truncated>"
+        return f"{header}\n{body}"
+
+    def _resolve_path(self, raw_path: str) -> Path:
+        candidate = Path(raw_path)
+        candidate = candidate if candidate.is_absolute() else self.root / candidate
+        resolved = candidate.resolve()
+        if not resolved.is_relative_to(self.root):
+            raise ToolError("read tool cannot access paths outside the Pinecone directory")
+        return resolved
