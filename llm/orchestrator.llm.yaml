@@ -1,2 +1,18 @@
 orchestrator:
-  build: false
+  description: 
+  tools: 
+    publish:
+      inputs: 
+        audience: all | finder | reader
+        request: string
+      output: sub-agent response
+  workflow:
+    - initialize all sub-agents
+    - wait for user input
+    - loop for final answer:
+        - get llm chat response 
+        - if publish func called:
+            - append llm request to all sub-agent chat histories
+            - request response from each audience member:
+                timeout: 5 minutes
+            - append audience member responses to all sub-agent chat histories
