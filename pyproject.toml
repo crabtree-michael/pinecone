@@ -20,3 +20,6 @@ pinecone-orchestrator = "pinecone.orchestrator_cli:main"
 [tool.setuptools.packages.find]
 include = ["pinecone", "pinecone.*"]
 namespaces = false
+
+[tool.setuptools.package-data]
+"pinecone.prompts" = ["*.md"]
