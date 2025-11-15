@@ -4,3 +4,5 @@ pinecone:
   virtualenv: .venv
   defintions:
     working directory: directory where the user calls pinecone
+  on load:
+    - source package directory .env file

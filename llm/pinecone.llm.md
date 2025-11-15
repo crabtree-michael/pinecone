@@ -24,9 +24,13 @@ The orchestrator contains the primary chat. This chat is a log of communication 
 
 This allows for context isolation. Any entry into the master chat, will be appended to every individual agent's chat history. They only need to the context that other agents determine they need to know.
 
-# Ollama
+# OpenRouter
 
-All agents should use Ollama as a backing to access llms. All agents should use the `gpt-oss:20b` model. The chat endpoint should always be used. The tool parameter in the chat endpoint should be specified for any agent with tools.
+All agents should use OpenRouter to access llms. OpenRouter is an external API that allows agents to maintain a chat with an llm.
+
+The chat endpoint defined [here](https://platform.openai.com/docs/api-reference/chat/create) should be used. If you need more information about the endpoint, please use `curl` to access this resource. The `tools` parameter in the request should be defined.
+
+All agents should use the `gpt-5.1` model.
 
 # Agent Roles
 
