@@ -33,6 +33,8 @@ export OPENROUTER_API_KEY="sk-or-..."
 # export OPENROUTER_BASE_URL="https://openrouter.ai/api/v1"
 ```
 
+Alternatively, place the same key/value pairs inside `pinecone/.env`; the package auto-loads this file on import and sets any variables that are not already defined in the process environment.
+
 ## Running the agents
 Each agent ships with a standalone CLI entry point (registered in `pyproject.toml` under `[project.scripts]`):
 
