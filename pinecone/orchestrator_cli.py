@@ -6,7 +6,7 @@ from pathlib import Path
 
 from .agents import OrchestratorAgent
 from .cli_utils import chat_loop, load_prompt, show_banner
-from .llm import OllamaClient
+from .llm import OpenRouterClient
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
@@ -41,7 +41,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         "--model",
         type=str,
         default=OrchestratorAgent.MODEL_NAME,
-        help="Override the orchestrator Ollama model name.",
+        help="Override the orchestrator OpenRouter model name.",
     )
     parser.add_argument(
         "--finder-model",
@@ -67,7 +67,7 @@ def run_orchestrator(
     finder_model: str | None,
     reader_model: str | None,
 ) -> None:
-    client = OllamaClient()
+    client = OpenRouterClient()
     agent = OrchestratorAgent.from_workspace(
         root=root,
         prompt_template=prompt_template,

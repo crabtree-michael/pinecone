@@ -6,7 +6,7 @@ from pathlib import Path
 
 from .agents import ReaderAgent
 from .cli_utils import chat_loop, load_prompt, show_banner
-from .llm import OllamaClient
+from .llm import OpenRouterClient
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
@@ -29,13 +29,13 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         "--model",
         type=str,
         default=ReaderAgent.MODEL_NAME,
-        help="Override the Ollama model name.",
+        help="Override the OpenRouter model name.",
     )
     return parser.parse_args(argv)
 
 
 def run_reader(root: Path, prompt_template: str, model: str) -> None:
-    client = OllamaClient()
+    client = OpenRouterClient()
     agent = ReaderAgent.from_workspace(
         root=root,
         prompt_template=prompt_template,

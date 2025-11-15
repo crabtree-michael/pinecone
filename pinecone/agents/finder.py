@@ -4,14 +4,14 @@ from pathlib import Path
 from typing import List
 
 from .base import Agent
-from ..llm import OllamaClient
+from ..llm import OpenRouterClient
 from ..tools import ShellTool
 
 
 class FinderAgent(Agent):
     """Finder agent responsible for filesystem discovery."""
 
-    MODEL_NAME = "gpt-oss:20b"
+    MODEL_NAME = "gpt-5.1"
     INITIAL_CONTEXT_DEPTH = 3
     MAX_RESULTS_PER_FOLDER = 100
 
@@ -20,7 +20,7 @@ class FinderAgent(Agent):
         *,
         root: Path,
         prompt_template: str,
-        client: OllamaClient,
+        client: OpenRouterClient,
         initial_context: str | None = None,
         model: str | None = None,
     ) -> None:
@@ -46,7 +46,7 @@ class FinderAgent(Agent):
         *,
         root: Path,
         prompt_template: str,
-        client: OllamaClient,
+        client: OpenRouterClient,
         model: str | None = None,
     ) -> "FinderAgent":
         return cls(

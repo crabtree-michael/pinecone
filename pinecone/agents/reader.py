@@ -4,14 +4,14 @@ from pathlib import Path
 from typing import List
 
 from .base import Agent
-from ..llm import OllamaClient
+from ..llm import OpenRouterClient
 from ..tools import ReadTool
 
 
 class ReaderAgent(Agent):
     """Reader agent capable of inspecting file contents."""
 
-    MODEL_NAME = "gpt-oss:20b"
+    MODEL_NAME = "gpt-5.1"
     INITIAL_FILE_COUNT = 3
 
     def __init__(
@@ -19,7 +19,7 @@ class ReaderAgent(Agent):
         *,
         root: Path,
         prompt_template: str,
-        client: OllamaClient,
+        client: OpenRouterClient,
         model: str | None = None,
         initial_context: str | None = None,
     ) -> None:
@@ -46,7 +46,7 @@ class ReaderAgent(Agent):
         *,
         root: Path,
         prompt_template: str,
-        client: OllamaClient,
+        client: OpenRouterClient,
         model: str | None = None,
     ) -> "ReaderAgent":
         return cls(

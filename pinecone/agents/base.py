@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from typing import Dict, List
 
-from ..llm import OllamaClient
+from ..llm import OpenRouterClient
 from ..tools import Tool, ToolError
 from ..types import ChatMessage
 
@@ -17,7 +17,7 @@ class Agent:
         name: str,
         model: str,
         prompt: str,
-        client: OllamaClient,
+        client: OpenRouterClient,
         tools: Dict[str, Tool] | None = None,
     ) -> None:
         self.name = name

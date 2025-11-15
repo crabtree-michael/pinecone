@@ -8,7 +8,7 @@ from typing import Dict, List
 from .base import Agent
 from .finder import FinderAgent
 from .reader import ReaderAgent
-from ..llm import OllamaClient
+from ..llm import OpenRouterClient
 from ..tools import PublishTool, ToolError
 from ..types import ChatMessage
 
@@ -16,7 +16,7 @@ from ..types import ChatMessage
 class OrchestratorAgent(Agent):
     """Coordinates finder and reader agents via the publish tool."""
 
-    MODEL_NAME = "gpt-oss:20b"
+    MODEL_NAME = "gpt-5.1"
     RESPONSE_TIMEOUT_SECONDS = 300
 
     def __init__(
@@ -26,7 +26,7 @@ class OrchestratorAgent(Agent):
         prompt_template: str,
         finder_prompt_template: str,
         reader_prompt_template: str,
-        client: OllamaClient,
+        client: OpenRouterClient,
         model: str | None = None,
         finder_model: str | None = None,
         reader_model: str | None = None,
@@ -39,6 +39,7 @@ class OrchestratorAgent(Agent):
             reader_prompt_template=reader_prompt_template,
             finder_model=finder_model,
             reader_model=reader_model,
+            client=client,
         )
         tools = {"publish": PublishTool(handler=self.publish)}
         super().__init__(
@@ -57,7 +58,7 @@ class OrchestratorAgent(Agent):
         prompt_template: str,
         finder_prompt_template: str,
         reader_prompt_template: str,
-        client: OllamaClient,
+        client: OpenRouterClient,
         model: str | None = None,
         finder_model: str | None = None,
         reader_model: str | None = None,
@@ -91,20 +92,29 @@ class OrchestratorAgent(Agent):
         reader_prompt_template: str,
         finder_model: str | None,
         reader_model: str | None,
+        client: OpenRouterClient,
     ) -> Dict[str, Agent]:
         finder_agent = FinderAgent.from_workspace(
             root=root,
             prompt_template=finder_prompt_template,
-            client=OllamaClient(),
+            client=self._clone_client(client),
             model=finder_model,
         )
         reader_agent = ReaderAgent.from_workspace(
             root=root,
             prompt_template=reader_prompt_template,
-            client=OllamaClient(),
+            client=self._clone_client(client),
             model=reader_model,
         )
         return {"finder": finder_agent, "reader": reader_agent}
+
+    @staticmethod
+    def _clone_client(client: OpenRouterClient) -> OpenRouterClient:
+        return OpenRouterClient(
+            api_key=client.api_key,
+            base_url=client.base_url,
+            timeout=client.timeout,
+        )
 
     def _resolve_audience(self, audience: str) -> List[str]:
         audience = audience.lower().strip()
